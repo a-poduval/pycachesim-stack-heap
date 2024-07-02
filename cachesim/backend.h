@@ -29,6 +29,17 @@ struct stats {
     //long cl; // might be used later
 };
 
+struct presence_stats {
+    long long count;
+    long long byte;
+    //long long load; // possibly look at tracking load and store hit/miss counts later
+    //long long store;
+    long long stack;
+    long long heap;
+    long long stack_bytes;
+    long long heap_bytes;
+};
+
 typedef struct Cache {
 #ifndef NO_PYTHON
     PyObject_HEAD
@@ -65,16 +76,16 @@ typedef struct Cache {
 
     struct stats LOAD;
     struct stats STORE;
-    struct stats HIT;
-    struct stats MISS;
+    struct presence_stats HIT;
+    struct presence_stats MISS;
     struct stats EVICT;
 
     int verbosity;
 } Cache;
 
-int Cache__load(Cache* self, addr_range range);
+int Cache__load(Cache* self, addr_range range, unsigned int stack);
 
-void Cache__store(Cache* self, addr_range range, int non_temporal);
+void Cache__store(Cache* self, addr_range range, int non_temporal, unsigned int stack);
 
 //!might break for complicated cache structures
 void dealloc_cacheSim(Cache*);
