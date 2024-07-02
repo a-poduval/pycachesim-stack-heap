@@ -92,10 +92,26 @@ static PyMemberDef Cache_members[] = {
      "number of cache hits"},
     {"HIT_byte", T_LONGLONG, offsetof(Cache, HIT.byte), 0,
      "number of bytes that were cache hits"},
+    {"HIT_stack_count", T_LONGLONG, offsetof(Cache, HIT.stack), 0,
+     "number of stack cache hits"},
+    {"HIT_stack_bytes", T_LONGLONG, offsetof(Cache, HIT.stack_bytes), 0,
+     "number of stack bytes that were cache hits"},
+    {"HIT_heap_count", T_LONGLONG, offsetof(Cache, HIT.heap), 0,
+     "number of heap cache hits"},
+    {"HIT_heap_bytes", T_LONGLONG, offsetof(Cache, HIT.heap_bytes), 0,
+     "number of heap bytes that were cache hits"},
     {"MISS_count", T_LONGLONG, offsetof(Cache, MISS.count), 0,
      "number of misses"},
     {"MISS_byte", T_LONGLONG, offsetof(Cache, MISS.byte), 0,
      "number of bytes missed"},
+    {"MISS_stack_count", T_LONGLONG, offsetof(Cache, MISS.stack), 0,
+     "number of misses to stack"},
+    {"MISS_stack_bytes", T_LONGLONG, offsetof(Cache, MISS.stack_bytes), 0,
+     "number of stack bytes missed"},
+    {"MISS_heap_count", T_LONGLONG, offsetof(Cache, MISS.heap), 0,
+     "number of misses to heap"},
+    {"MISS_heap_bytes", T_LONGLONG, offsetof(Cache, MISS.heap_bytes), 0,
+     "number of heap bytes missed"},
     {"EVICT_count", T_LONGLONG, offsetof(Cache, EVICT.count), 0,
      "number of evicts"},
     {"EVICT_byte", T_LONGLONG, offsetof(Cache, EVICT.byte), 0,
@@ -581,7 +597,7 @@ static PyObject* Cache_load(Cache* self, PyObject *args, PyObject *kwds)
     range.length = 1; // default to 1
     unsigned int stack = 0;
 
-    static char *kwlist[] = {"addr", "length", NULL};
+    static char *kwlist[] = {"addr", "length", "stack", NULL};
     PyArg_ParseTupleAndKeywords(args, kwds, "L|II", kwlist, &range.addr, &range.length, &stack);
 
     Cache__load(self, range, stack); // TODO , 0);
@@ -632,7 +648,7 @@ static PyObject* Cache_store(Cache* self, PyObject *args, PyObject *kwds)
     range.length = 1; // default to 1
     unsigned int stack = 0;
 
-    static char *kwlist[] = {"addr", "length", NULL};
+    static char *kwlist[] = {"addr", "length", "stack", NULL};
     PyArg_ParseTupleAndKeywords(args, kwds, "L|LI", kwlist, &range.addr, &range.length, &stack);
 
     // Handling ranges in c tremendously increases the speed for multiple elements
