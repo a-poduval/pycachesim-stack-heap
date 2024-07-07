@@ -113,7 +113,7 @@ class CacheSimulator(object):
         for c in self.levels(with_mem=False):
             c.force_write_back()
 
-    def load(self, addr, stack, length=1):
+    def load(self, addr, stack, inROI, length=1):
         """
         Load one or more addresses.
 
@@ -124,11 +124,11 @@ class CacheSimulator(object):
         if addr is None:
             return
         elif not isinstance(addr, Iterable):
-            self.first_level.load(addr, length=length, stack=stack)
+            self.first_level.load(addr, length=length, stack=stack, inROI=inROI)
         else:
             self.first_level.iterload(addr, length=length)
 
-    def store(self, addr, stack, length=1, non_temporal=False):
+    def store(self, addr, stack, inROI, length=1, non_temporal=False):
         """
         Store one or more adresses.
 
@@ -143,7 +143,7 @@ class CacheSimulator(object):
         if addr is None:
             return
         elif not isinstance(addr, Iterable):
-            self.first_level.store(addr, length=length, stack=stack)
+            self.first_level.store(addr, length=length, stack=stack, inROI=inROI)
         else:
             self.first_level.iterstore(addr, length=length)
 
@@ -392,6 +392,18 @@ class Cache(object):
         assert self.backend.MISS_stack_bytes >= 0, "MISS_stack_byte < 0"
         assert self.backend.MISS_heap_count >= 0, "MISS_heap_count < 0"
         assert self.backend.MISS_heap_bytes >= 0, "MISS_heap_byte < 0"
+        assert self.backend.ROI_HIT_count >= 0, "ROI_HIT_count < 0"
+        assert self.backend.ROI_HIT_byte >= 0, "ROI_HIT_byte < 0"
+        assert self.backend.ROI_HIT_stack_count >= 0, "ROI_HIT_stack_count < 0"
+        assert self.backend.ROI_HIT_stack_bytes >= 0, "ROI_HIT_stack_byte < 0"
+        assert self.backend.ROI_HIT_heap_count >= 0, "ROI_HIT_heap_count < 0"
+        assert self.backend.ROI_HIT_heap_bytes >= 0, "ROI_HIT_heap_byte < 0"
+        assert self.backend.ROI_MISS_count >= 0, "ROI_MISS_count < 0"
+        assert self.backend.ROI_MISS_byte >= 0, "ROI_MISS_byte < 0"
+        assert self.backend.ROI_MISS_stack_count >= 0, "ROI_MISS_stack_count < 0"
+        assert self.backend.ROI_MISS_stack_bytes >= 0, "ROI_MISS_stack_byte < 0"
+        assert self.backend.ROI_MISS_heap_count >= 0, "ROI_MISS_heap_count < 0"
+        assert self.backend.ROI_MISS_heap_bytes >= 0, "ROI_MISS_heap_byte < 0"
         assert self.backend.EVICT_count >= 0, "EVICT_count < 0"
         assert self.backend.EVICT_byte >= 0, "EVICT_byte < 0"
         return {'name': self.name,
@@ -411,6 +423,18 @@ class Cache(object):
                 'MISS_stack_byte': self.backend.MISS_stack_bytes,
                 'MISS_heap_count': self.backend.MISS_heap_count,
                 'MISS_heap_byte': self.backend.MISS_heap_bytes,
+                'ROI_HIT_count': self.backend.ROI_HIT_count,
+                'ROI_HIT_byte': self.backend.ROI_HIT_byte,
+                'ROI_HIT_stack_count': self.backend.ROI_HIT_stack_count,
+                'ROI_HIT_stack_byte': self.backend.ROI_HIT_stack_bytes,
+                'ROI_HIT_heap_count': self.backend.ROI_HIT_heap_count,
+                'ROI_HIT_heap_byte': self.backend.ROI_HIT_heap_bytes,
+                'ROI_MISS_count': self.backend.ROI_MISS_count,
+                'ROI_MISS_byte': self.backend.ROI_MISS_byte,
+                'ROI_MISS_stack_count': self.backend.ROI_MISS_stack_count,
+                'ROI_MISS_stack_byte': self.backend.ROI_MISS_stack_bytes,
+                'ROI_MISS_heap_count': self.backend.ROI_MISS_heap_count,
+                'ROI_MISS_heap_byte': self.backend.ROI_MISS_heap_bytes,
                 'EVICT_count': self.backend.EVICT_count,
                 'EVICT_byte': self.backend.EVICT_byte}
 

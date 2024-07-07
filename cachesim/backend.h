@@ -78,14 +78,16 @@ typedef struct Cache {
     struct stats STORE;
     struct presence_stats HIT;
     struct presence_stats MISS;
+    struct presence_stats ROI_HIT;
+    struct presence_stats ROI_MISS;
     struct stats EVICT;
 
     int verbosity;
 } Cache;
 
-int Cache__load(Cache* self, addr_range range, unsigned int stack);
+int Cache__load(Cache* self, addr_range range, unsigned int stack, unsigned int inROI);
 
-void Cache__store(Cache* self, addr_range range, int non_temporal, unsigned int stack);
+void Cache__store(Cache* self, addr_range range, int non_temporal, unsigned int stack, unsigned int inROI);
 
 //!might break for complicated cache structures
 void dealloc_cacheSim(Cache*);

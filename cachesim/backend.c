@@ -112,6 +112,30 @@ static PyMemberDef Cache_members[] = {
      "number of misses to heap"},
     {"MISS_heap_bytes", T_LONGLONG, offsetof(Cache, MISS.heap_bytes), 0,
      "number of heap bytes missed"},
+    {"ROI_HIT_count", T_LONGLONG, offsetof(Cache, ROI_HIT.count), 0,
+     "number of cache hits in ROI"},
+    {"ROI_HIT_byte", T_LONGLONG, offsetof(Cache, ROI_HIT.byte), 0,
+     "number of bytes that were cache hits in ROI"},
+    {"ROI_HIT_stack_count", T_LONGLONG, offsetof(Cache, ROI_HIT.stack), 0,
+     "number of stack cache hits in ROI"},
+    {"ROI_HIT_stack_bytes", T_LONGLONG, offsetof(Cache, ROI_HIT.stack_bytes), 0,
+     "number of stack bytes that were cache hits in ROI"},
+    {"ROI_HIT_heap_count", T_LONGLONG, offsetof(Cache, ROI_HIT.heap), 0,
+     "number of heap cache hits in ROI"},
+    {"ROI_HIT_heap_bytes", T_LONGLONG, offsetof(Cache, ROI_HIT.heap_bytes), 0,
+     "number of heap bytes that were cache hits in ROI"},
+    {"ROI_MISS_count", T_LONGLONG, offsetof(Cache, ROI_MISS.count), 0,
+     "number of misses in ROI"},
+    {"ROI_MISS_byte", T_LONGLONG, offsetof(Cache, ROI_MISS.byte), 0,
+     "number of bytes missed in ROI"},
+    {"ROI_MISS_stack_count", T_LONGLONG, offsetof(Cache, ROI_MISS.stack), 0,
+     "number of misses to stack in ROI"},
+    {"ROI_MISS_stack_bytes", T_LONGLONG, offsetof(Cache, ROI_MISS.stack_bytes), 0,
+     "number of stack bytes missed in ROI"},
+    {"ROI_MISS_heap_count", T_LONGLONG, offsetof(Cache, ROI_MISS.heap), 0,
+     "number of misses to heap in ROI"},
+    {"ROI_MISS_heap_bytes", T_LONGLONG, offsetof(Cache, ROI_MISS.heap_bytes), 0,
+     "number of heap bytes missed in ROI"},
     {"EVICT_count", T_LONGLONG, offsetof(Cache, EVICT.count), 0,
      "number of evicts"},
     {"EVICT_byte", T_LONGLONG, offsetof(Cache, EVICT.byte), 0,
@@ -176,9 +200,9 @@ inline static int Cache__get_location(Cache* self, long cl_id, long set_id) {
     return -1; // Not found
 }
 
-void Cache__store(Cache* self, addr_range range, int non_temporal, unsigned int stack);
+void Cache__store(Cache* self, addr_range range, int non_temporal, unsigned int stack, unsigned int inROI);
 
-static int Cache__inject(Cache* self, cache_entry* entry, unsigned int stack) {
+static int Cache__inject(Cache* self, cache_entry* entry, unsigned int stack, unsigned int inROI) {
     /*
     Injects a cache entry into a cache and handles all side effects that might occur:
      - choose replacement according to policy
@@ -294,7 +318,7 @@ static int Cache__inject(Cache* self, cache_entry* entry, unsigned int stack) {
                 Cache__store(
                     (Cache*)self->store_to,
                     Cache__get_range_from_cl_id(self, replace_entry.cl_id),
-                    non_temporal, stack);
+                    non_temporal, stack, inROI);
 #ifndef NO_PYTHON
                 Py_DECREF(self->store_to);
 #endif
@@ -307,7 +331,7 @@ static int Cache__inject(Cache* self, cache_entry* entry, unsigned int stack) {
 #endif
             // Inject into victims_to
             Cache* victims_to = (Cache*)self->victims_to;
-            Cache__inject(victims_to, &replace_entry, stack);
+            Cache__inject(victims_to, &replace_entry, stack, inROI);
             // Take care to include into evict stats
             self->EVICT.count++;
             self->EVICT.byte += self->cl_size;
@@ -322,7 +346,7 @@ static int Cache__inject(Cache* self, cache_entry* entry, unsigned int stack) {
     return replace_idx;
 }
 
-int Cache__load(Cache* self, addr_range range, unsigned int stack) {
+int Cache__load(Cache* self, addr_range range, unsigned int stack, unsigned int inROI) {
     /*
     Signals request of addr range by higher level. This handles hits and misses.
     */
@@ -352,9 +376,21 @@ int Cache__load(Cache* self, addr_range range, unsigned int stack) {
             if(stack == 1) {
                 self->HIT.stack++;
                 self->HIT.stack_bytes += self->cl_size < range.length ? self->cl_size : range.length;
+                if(inROI == 1) {
+                    self->ROI_HIT.count++;
+                    self->ROI_HIT.byte += self->cl_size < range.length ? self->cl_size : range.length;
+                    self->ROI_HIT.stack++;
+                    self->ROI_HIT.stack_bytes += self->cl_size < range.length ? self->cl_size : range.length;
+                }
             } else {
                 self->HIT.heap++;
                 self->HIT.heap_bytes += self->cl_size < range.length ? self->cl_size : range.length;
+                if(inROI == 1) {
+                    self->ROI_HIT.count++;
+                    self->ROI_HIT.byte += self->cl_size < range.length ? self->cl_size : range.length;
+                    self->ROI_HIT.heap++;
+                    self->ROI_HIT.heap_bytes += self->cl_size < range.length ? self->cl_size : range.length;
+                }
             }
 #ifndef NO_PYTHON
             if(self->verbosity >= 3) {
@@ -410,9 +446,21 @@ int Cache__load(Cache* self, addr_range range, unsigned int stack) {
             if(stack == 1) {
                 self->MISS.stack++;
                 self->MISS.stack_bytes += self->cl_size < range.length ? self->cl_size : range.length;
+                if(inROI == 1) {
+                    self->ROI_MISS.count++;
+                    self->ROI_MISS.byte += self->cl_size < range.length ? self->cl_size : range.length;
+                    self->ROI_MISS.stack++;
+                    self->ROI_MISS.stack_bytes += self->cl_size < range.length ? self->cl_size : range.length;
+                }
             } else {
                 self->MISS.heap++;
                 self->MISS.heap_bytes += self->cl_size < range.length ? self->cl_size : range.length;
+                if(inROI == 1) {
+                    self->ROI_MISS.count++;
+                    self->ROI_MISS.byte += self->cl_size < range.length ? self->cl_size : range.length;
+                    self->ROI_MISS.heap++;
+                    self->ROI_MISS.heap_bytes += self->cl_size < range.length ? self->cl_size : range.length;
+                }
             }
 #ifndef NO_PYTHON
         if(self->verbosity >= 2) {
@@ -448,7 +496,7 @@ int Cache__load(Cache* self, addr_range range, unsigned int stack) {
                 }
 #endif
                 // load data from victim cache
-                Cache__load((Cache*)self->victims_to, Cache__get_range_from_cl_id(self, cl_id), stack);
+                Cache__load((Cache*)self->victims_to, Cache__get_range_from_cl_id(self, cl_id), stack, inROI);
                 // do NOT go onto load_from cache
                 victim_hit = 1;
             } 
@@ -465,7 +513,7 @@ int Cache__load(Cache* self, addr_range range, unsigned int stack) {
             Py_INCREF(self->load_from);
 #endif
             // TODO use replace_entry to inform other cache of swap (in case of exclusive caches)
-            Cache__load((Cache*)self->load_from, Cache__get_range_from_cl_id(self, cl_id), stack);
+            Cache__load((Cache*)self->load_from, Cache__get_range_from_cl_id(self, cl_id), stack, inROI);
             // TODO, replace_cl_id);
 #ifndef NO_PYTHON
             Py_DECREF(self->load_from);
@@ -478,7 +526,7 @@ int Cache__load(Cache* self, addr_range range, unsigned int stack) {
         entry.invalid = 0;
 
         // Inject new entry into own cache. This also handles replacement.
-        placement_idx = Cache__inject(self, &entry, stack);
+        placement_idx = Cache__inject(self, &entry, stack, inROI);
 
         // TODO if this is an exclusive cache (swap_on_load = True), swap delivered cacheline with swap_cl_id (here and at hit)
     }
@@ -487,7 +535,7 @@ int Cache__load(Cache* self, addr_range range, unsigned int stack) {
     return placement_idx;
 }
 
-void Cache__store(Cache* self, addr_range range, int non_temporal, unsigned int stack) {
+void Cache__store(Cache* self, addr_range range, int non_temporal, unsigned int stack, unsigned int inROI) {
     self->STORE.count++;
     self->STORE.byte += range.length;
     // Handle range:
@@ -513,7 +561,7 @@ void Cache__store(Cache* self, addr_range range, int non_temporal, unsigned int 
                 // TODO does this also make sens if store with write-allocate and MISS happens on L2?
                 // or would this inject byte loads instead of CL loads into the statistic
                 // TODO makes no sens if first level is write-through (all byte requests hit L2)
-                location = Cache__load(self, Cache__get_range_from_cl_id(self, cl_id), stack);
+                location = Cache__load(self, Cache__get_range_from_cl_id(self, cl_id), stack, inROI);
             }
         } else if(location == -1 && self->write_back == 1) {
             // In non-temporal store case, write-combining or write-through:
@@ -522,7 +570,7 @@ void Cache__store(Cache* self, addr_range range, int non_temporal, unsigned int 
             entry.cl_id = cl_id;
             entry.dirty = 1;
             entry.invalid = 0;
-            location = Cache__inject(self, &entry, stack);
+            location = Cache__inject(self, &entry, stack, inROI);
         }
 
         // Mark address range as cached in the bitfield
@@ -560,7 +608,7 @@ void Cache__store(Cache* self, addr_range range, int non_temporal, unsigned int 
 #endif
                 Cache__store((Cache*)(self->store_to),
                              store_range,
-                             non_temporal, stack);
+                             non_temporal, stack, inROI);
 #ifndef NO_PYTHON
                 Py_DECREF(self->store_to);
 #endif
@@ -595,12 +643,12 @@ static PyObject* Cache_load(Cache* self, PyObject *args, PyObject *kwds)
 {
     addr_range range;
     range.length = 1; // default to 1
-    unsigned int stack = 0;
+    unsigned int stack = 0, inROI = 0;
 
-    static char *kwlist[] = {"addr", "length", "stack", NULL};
-    PyArg_ParseTupleAndKeywords(args, kwds, "L|II", kwlist, &range.addr, &range.length, &stack);
+    static char *kwlist[] = {"addr", "length", "stack", "inROI", NULL};
+    PyArg_ParseTupleAndKeywords(args, kwds, "L|III", kwlist, &range.addr, &range.length, &stack, &inROI);
 
-    Cache__load(self, range, stack); // TODO , 0);
+    Cache__load(self, range, stack, inROI); // TODO , 0);
     // Swap cl_id is irrelevant here, since this is only called on first level cache
 
     Py_RETURN_NONE;
@@ -633,7 +681,7 @@ static PyObject* Cache_iterload(Cache* self, PyObject *args, PyObject *kwds)
 #else
         range.addr = PyInt_AsLong(addr);
 #endif
-        Cache__load(self, range, 0); // TODO , 0);
+        Cache__load(self, range, 0, 0); // TODO , 0);
         // Swap cl_id is irrelevant here, since this is only called on first level cache
 
         Py_DECREF(addr);
@@ -646,13 +694,13 @@ static PyObject* Cache_store(Cache* self, PyObject *args, PyObject *kwds)
 {
     addr_range range;
     range.length = 1; // default to 1
-    unsigned int stack = 0;
+    unsigned int stack = 0, inROI = 0;
 
-    static char *kwlist[] = {"addr", "length", "stack", NULL};
-    PyArg_ParseTupleAndKeywords(args, kwds, "L|LI", kwlist, &range.addr, &range.length, &stack);
+    static char *kwlist[] = {"addr", "length", "stack", "inROI", NULL};
+    PyArg_ParseTupleAndKeywords(args, kwds, "L|LII", kwlist, &range.addr, &range.length, &stack, &inROI);
 
     // Handling ranges in c tremendously increases the speed for multiple elements
-    Cache__store(self, range, 0, stack);
+    Cache__store(self, range, 0, stack, inROI);
 
     Py_RETURN_NONE;
 }
@@ -684,7 +732,7 @@ static PyObject* Cache_iterstore(Cache* self, PyObject *args, PyObject *kwds)
 #else
         range.addr = PyInt_AsLong(addr);
 #endif
-        Cache__store(self, range, 0, 0);
+        Cache__store(self, range, 0, 0, 0);
 
         Py_DECREF(addr);
     }
@@ -749,7 +797,7 @@ static PyObject* Cache_loadstore(Cache* self, PyObject *args, PyObject *kwds)
 #else
                 range.addr = PyInt_AsLong(addr);
 #endif
-                Cache__load(self, range, 0); // TODO , 0);
+                Cache__load(self, range, 0, 0); // TODO , 0);
                 // Swap cl_id is irrelevant here, since this is only called on first level cache
                 Py_DECREF(addr);
             }
@@ -780,7 +828,7 @@ static PyObject* Cache_loadstore(Cache* self, PyObject *args, PyObject *kwds)
 #else
                 range.addr = PyInt_AsLong(addr);
 #endif
-                Cache__store(self, range, 0, 0);
+                Cache__store(self, range, 0, 0, 0);
                 Py_DECREF(addr);
             }
             Py_DECREF(store_iter);
@@ -849,7 +897,7 @@ static PyObject* Cache_force_write_back(Cache* self) {
                 Cache__store(
                     (Cache*)self->store_to,
                     Cache__get_range_from_cl_id(self, self->placement[i].cl_id),
-                    non_temporal, 0);
+                    non_temporal, 0, 0);
                 Py_DECREF(self->store_to);
             }
             self->placement[i].dirty = 0;

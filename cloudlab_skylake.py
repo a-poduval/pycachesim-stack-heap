@@ -50,9 +50,9 @@ def parse_text_file(filename):
                         addr = int(values[3].strip(), 16)
                         length = int(values[4].strip())
                         if (isWrite == 0):
-                            cs.load(addr = addr, stack = isStack, length = length)
+                            cs.load(addr = addr, stack = isStack, inROI = isROI, length = length)
                         elif (isWrite == 1):
-                            cs.store(addr = addr, stack = isStack, length = length)
+                            cs.store(addr = addr, stack = isStack, inROI = isROI, length = length)
                     except ValueError as e:
                         print(f"Error processing line '{line}': {e}")
                 else:
